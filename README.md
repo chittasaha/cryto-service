@@ -1,1 +1,1 @@
-# cryto-service
+# crypto-service
