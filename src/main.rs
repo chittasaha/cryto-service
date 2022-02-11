@@ -1,34 +1,19 @@
-use coingecko::{Client, SimplePriceReq};
+//use coingecko::{Client, SimplePriceReq};
+
+use coingecko_rs::{CoinGeckoClient};
 
 
-pub fn main() {
-    smol::block_on(async {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    
         
-        let vec_currency = vec!["acala","cardano","altair","altura","astar","avalanche-2","centrifuge","coti","curve-dao-token","polkadot","efinity","ethereum","fantom","moonbeam","kilt-protocol","kintsugi","calamari-network","kusama","decentraland","moonriver","harmony","parallel","the-sandbox","shiden","stratos"];
+        let vec_currency = vec!["acala","cardano","altair","altura","astar","avalanche-2","centrifuge","coti","curve-dao-token","polkadot","efinity","ethereum","fantom","moonbeam","kilt-protocol","kintsugi","calamari-network","kusama","decentraland","moonriver","harmony","parallel","the-sandbox","shiden"];
         
+        //let currencies = vec_currency.iter().map(|x| x.to_string() + ",").collect::<String>();
         
-        let currencies = vec_currency.iter().map(|x| x.to_string() + ",").collect::<String>();
-        
-        
-        
-        let http = isahc::HttpClient::new().unwrap();
+        let client = CoinGeckoClient::default();            
 
-        let client = Client::new(http);
-
-        //let coin_list = client.coins_list().await.ok().unwrap();
-        
-        // for c in coin_list
-        // {
-        //     println!("{0},{1},{2}",c.id,c.symbol,c.name);
-        // };
-        let req = SimplePriceReq::new(currencies.into(), "eur".into())
-            .include_market_cap()
-            .include_24hr_vol()
-            .include_24hr_change()
-            .include_last_updated_at();
-            
-
-        let prices= match client.simple_price(req).await
+        let prices= match client.price( vec_currency.clone(), vec!["eur"],true, true, true, false).await
         {
             Ok(p) => p,
             Err(_error) => panic!(""),
@@ -39,7 +24,7 @@ pub fn main() {
             if prices.contains_key(cur)
             {
                 //println!("{0}",cur);
-                println!("{0}",prices[cur]["eur"]);
+                println!("{:?}",prices[cur].eur.unwrap());
             }
             else
             {
@@ -70,5 +55,7 @@ pub fn main() {
             //println!("{:#?}", );
         //println!("{:#?}", client.coins_list().await);
         //println!("{:#?}", client.coin_info(&"cardano").await);
-    })
+
+        Ok(())
+
 }
