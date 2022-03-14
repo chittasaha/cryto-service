@@ -9,7 +9,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use crate::models::Currency;
+use crate::models::{Currency, Token};
 use tracing::{info, Level};
 
 pub mod models;
@@ -40,10 +40,92 @@ async fn main() {
 async fn get_tokens() -> Result<impl IntoResponse, StatusCode> {
     
     let client = CoinGeckoClient::default();
-    let result = client.coins_list(true)
-    .await.unwrap();
+
     
-    Ok(Json(result))
+    let mut tokens:Vec<Token> = vec![]; 
+    
+    let coint_list = client.coins_list(false)
+    .await.unwrap();
+
+    for t in coint_list
+    {
+        
+        if t.id == "" 
+        {
+            continue;
+        }
+        
+        let coin = match client.coin(&t.id, false,false,true,true,true,true).await
+        {
+            Ok(c) => c,
+            Err(_e) => continue,
+        };
+        
+        
+        
+        let id = coin.id;
+        let name = coin.name;
+
+        let market_data = coin.market_data.unwrap();
+        let maket_cap = market_data.market_cap.eur.unwrap();
+
+        let devs_data = coin.developer_data.unwrap();
+        let total_devs = devs_data.pull_request_contributors.unwrap();
+        let last4_weeks_commit = devs_data.commit_count4_weeks.unwrap();
+
+        if maket_cap < 2000000.0 || total_devs < 2.0
+        {
+            continue;
+        }
+
+        let all_time_high = market_data.ath.eur.unwrap();
+        let ath_date =market_data.ath_date.usd.unwrap();
+        let all_time_low = market_data.atl.eur.unwrap();
+        let atl_date = market_data.atl_date.usd.unwrap();
+        let current_price = market_data.current_price.eur.unwrap();
+        let ath_change_parcent = market_data.ath_change_percentage.usd.unwrap();
+
+        //let circulating_supply = coin.market_data.unwrap().circulating_supply;
+        //let max_supply = market_data.max_supply;
+
+        let catagories = coin.categories.iter().map(|c| c.to_string() + ",").collect::<String>();
+        let description = coin.description.en.unwrap();
+        let twitter_follower = coin.community_data.unwrap().twitter_followers.unwrap();
+        //let market_rank = String::from(coin.market_cap_rank.as_str().unwrap());
+
+        //println!("{:?}", coin.clone());
+
+        let token = Token{
+            id : id,
+            name : name,
+            catagories : catagories,
+            description : description,
+            market_cap: maket_cap,
+            market_rank : String::from(""),
+            all_time_high : all_time_high,
+            ath_date : ath_date,
+            all_time_low : all_time_low,
+            atl_date : atl_date,
+            ath_change_parcent : ath_change_parcent,
+            current_price : current_price,
+            //cir_supbn/ ly : circulating_supply,
+            //max_supply }: max_supply,
+            total_devs : total_devs,
+            last4_weeks_commit : last4_weeks_commit,
+            twitter_followers : twitter_follower,            
+        };
+
+        //println!("{:?}", token.clone());
+        
+        tokens.push(token);
+
+    }
+
+    
+
+    //coin.developer_data.unwrap().
+    
+    Ok(Json(tokens))
 }
 
 
@@ -71,20 +153,27 @@ async fn get_prices() -> Result<impl IntoResponse, StatusCode> {
         {
             let base_cur = String::from("eur");
             let mut price:f64= 0.0;
+            let mut change_24:f64 = 0.0;
+            let mut market_capital:f64 = 0.0; 
             let name = String::from(cur);
             if prices.contains_key(cur)
             {
                 //println!("{0}",cur);
                 price = prices[cur].eur.unwrap();
+                change_24 = prices[cur].eur24_h_change.unwrap();
+                market_capital = prices[cur].eur_market_cap.unwrap();
+                //info!("{:?}", prices[cur]);
             }
+
+            
 
             response_price.push(Currency
                 {
                     base_currency: base_cur,
                     price: price,
                     name : name,
-                    change_last_24_hours: None,
-                    market_capital: None
+                    change_last_24_hours: Some(change_24),
+                    market_capital: Some(market_capital)
                 });
             
             
